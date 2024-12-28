@@ -1,0 +1,5 @@
+librosa
+numpy
+imagehash
+PyQt5
+matplotlib
