@@ -262,5 +262,5 @@ def main():
 
 if __name__ == "__main__":
     # Uncomment the following line to process all songs in the directory
-    # process_all_songs_in_directory("./Data/Songs")
-    main()
+    process_all_songs_in_directory("./Data/Songs")
+    # main()
