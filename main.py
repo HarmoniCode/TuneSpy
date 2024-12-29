@@ -183,7 +183,7 @@ class MainWindow(QWidget):
                     mel_spec_hash_similarity = self.calculate_md5_hash_similarity(song_mel_spec_hash, db_mel_spec_hash)
                 
                 
-                similarity = (weight_mfcc * mfcc_hash_similarity + weight_mel_spec * mel_spec_hash_similarity + weight_hash * spectrogram_hash_similarity)
+                similarity = (weight_mfcc * mfcc_hash_similarity + weight_mel_spec * mel_spec_hash_similarity + 100*weight_hash * spectrogram_hash_similarity)
                 
                 print(f"File: {file_name}, MFCC Hash Similarity: {mfcc_hash_similarity:.2f}%, MelSpec Hash Similarity: {mel_spec_hash_similarity:.2f}%, Spectrogram Hash Similarity: {spectrogram_hash_similarity:.2f}")
                 similarities.append((file_name, similarity))
