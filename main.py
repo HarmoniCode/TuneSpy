@@ -21,23 +21,44 @@ logger = logging.getLogger()
 
 class Song:
     def __init__(self, file_path):
+        # Initialize the Song object with the file path and other attributes
         self.file_path = file_path
         self.spectrogram_path = None
         self.features_path = None
         self.hash_path = None
-        self.duration = 30
+        self.duration = 30  # Duration to load from the audio file (in seconds)
 
     def load_audio(self):
+        '''
+        Load the audio file and return the time series and sample rate
+        Returns:
+            time (np.array): Time series of the audio
+            sample_rate (int): Sample rate of the audio
+        '''
         time, sample_rate = librosa.load(self.file_path, sr=None, duration=self.duration)
         logger.info(f"Loaded audio for {self.file_path}")
         return time, sample_rate
 
     def generate_spectrogram(self, time, sample_rate):
+        '''
+        Generate the spectrogram of the audio file
+        Args:
+            time (np.array): Time series of the audio
+            sample_rate (int): Sample rate of the audio
+        Returns:
+            spectrogram_dB (np.array): Spectrogram in decibel units
+        '''
         spectrogram = librosa.feature.melspectrogram(y=time, sr=sample_rate, n_mels=128, fmax=8000)
         spectrogram_dB = librosa.power_to_db(spectrogram, ref=np.max)
         return spectrogram_dB
 
     def save_spectrogram(self, spectrogram_dB, sample_rate):
+        '''
+        Save the spectrogram as an image
+        Args:
+            spectrogram_dB (np.array): Spectrogram in decibel units
+            sample_rate (int): Sample rate of the audio
+        '''
         plt.figure(figsize=(10, 4))
         librosa.display.specshow(spectrogram_dB, x_axis='time', y_axis='mel', sr=sample_rate)
         plt.colorbar(format='%+2.0f dB')
@@ -52,12 +73,28 @@ class Song:
         logger.info(f"Spectrogram saved: {self.spectrogram_path}")
 
     def extract_features(self, spectrogram_dB, time, sample_rate):
+        '''
+        Extract the features from the spectrogram
+        Args:
+            spectrogram_dB (np.array): Spectrogram in decibel units
+            time (np.array): Time series of the audio
+            sample_rate (int): Sample rate of the audio
+        Returns:
+            mfccs_list (list): List of MFCCs
+            mel_spec_list (list): List of Mel Spectrogram
+        '''
         mfccs = librosa.feature.mfcc(S=spectrogram_dB, sr=sample_rate, n_mfcc=13)
         mfccs_list = mfccs.tolist()
         mel_spec_list = spectrogram_dB.tolist()
         return mfccs_list, mel_spec_list
 
     def save_features(self, mfccs_list, mel_spec_list):
+        '''
+        Save the features as a JSON file
+        Args:
+            mfccs_list (list): List of MFCCs
+            mel_spec_list (list): List of Mel Spectrogram
+        '''
         output_dir = "./Data/Features"
         os.makedirs(output_dir, exist_ok=True)
         self.features_path = os.path.join(output_dir,
@@ -67,12 +104,24 @@ class Song:
         logger.info(f"Features saved: {self.features_path}")
 
     def hash_features(self, mfccs_list, mel_spec_list):
+        '''
+        Hash the features using pHash
+        Args:
+            mfccs_list (list): List of MFCCs
+            mel_spec_list (list): List of Mel Spectrogram
+        Returns:
+            spec_hash (str): Hash of the spectrogram image
+            mfcc_hash (str): Hash of the MFCCs image
+            mel_spec_hash (str): Hash of the Mel Spectrogram image
+        '''
         temp_dir = os.path.join("./Data", "Temp")
         os.makedirs(temp_dir, exist_ok=True)
 
+        # Hash the spectrogram image
         spec_img = Image.open(self.spectrogram_path)
         spec_hash = imagehash.phash(spec_img)
 
+        # Convert MFCCs to an image and hash it
         mfccs_array = np.array(mfccs_list)
         mfcc_temp_path = os.path.join(temp_dir, 'mfccs_temp.png')
         plt.imshow(mfccs_array, cmap='viridis', aspect='auto')
@@ -83,6 +132,7 @@ class Song:
         mfcc_hash = imagehash.phash(mfcc_img)
         os.remove(mfcc_temp_path)
 
+        # Convert Mel spectrogram to an image and hash it
         mel_spec_array = np.array(mel_spec_list)
         mel_spec_temp_path = os.path.join(temp_dir, 'mel_spec_temp.png')
         plt.imshow(mel_spec_array, cmap='viridis', aspect='auto')
@@ -96,6 +146,13 @@ class Song:
         return str(spec_hash), str(mfcc_hash), str(mel_spec_hash)
 
     def save_hashes(self, spectrogram_hash, mfcc_hash, mel_spec_hash):
+        '''
+        Save the hashes as a JSON file
+        Args:
+            spectrogram_hash (str): Hash of the spectrogram
+            mfcc_hash (str): Hash of the MFCCs
+            mel_spec_hash (str): Hash of the Mel Spectrogram
+        '''
         output_dir = "./Data/Hashes"
         os.makedirs(output_dir, exist_ok=True)
         self.hash_path = os.path.join(output_dir, os.path.splitext(os.path.basename(self.file_path))[0] + "_hash.json")
@@ -156,6 +213,10 @@ class MainWindow(QWidget):
         self.database = self.load_database()
 
     def load_song(self):
+        '''
+        Load a song file using a file dialog.
+        Sets the selected song to the Song object and updates the UI.
+        '''
         file_path, _ = QFileDialog.getOpenFileName(self, "Select Audio File", "", "Audio Files (*.mp3 *.wav *.flac)")
         if file_path:
             self.song = Song(file_path)
@@ -164,11 +225,12 @@ class MainWindow(QWidget):
             logger.info(f"Loaded song: {file_path}")
 
     def song_process(self):
+        '''
+        Process the loaded song to prepare it for comparison.
+        Sets the paths for features and hashes, and updates the UI.
+        '''
         if not self.song:
             return
-        # y, sr = self.song.load_audio()
-        # S_dB = self.song.generate_spectrogram(y, sr)
-        # mfccs_list, mel_spec_list = self.song.extract_features(S_dB, y, sr)
 
         self.song.features_path = os.path.join("./Data/Features",
                                                os.path.splitext(os.path.basename(self.song.file_path))[
@@ -180,6 +242,11 @@ class MainWindow(QWidget):
         self.compare_button.setEnabled(True)
 
     def load_database(self):
+        '''
+        Load the database of features and hashes from the Data directory.
+        Returns:
+            database (dict): Dictionary containing features and hashes of songs.
+        '''
         database = {}
         features_dir = "./Data/Features"
         hashes_dir = "./Data/Hashes"
@@ -198,6 +265,10 @@ class MainWindow(QWidget):
         return database
 
     def compare_with_database(self):
+        '''
+        Compare the loaded song with the songs in the database.
+        Calculates similarity based on spectrogram, MFCC, and Mel spectrogram hashes and features.
+        '''
         if not self.song:
             return
 
@@ -230,10 +301,12 @@ class MainWindow(QWidget):
                     mfcc_similarity = self.calculate_similarity(song_mfcc, data["mfccs"])
                     mel_spec_similarity = self.calculate_similarity(song_mel_spec, data["melSpec"])
 
-                    similarity = (
-                                         weight_mfcc * mfcc_hash_similarity + weight_mel_spec * mel_spec_hash_similarity + weight_hash * spectrogram_hash_similarity) * 100
-                    similarity += (mfcc_similarity + mel_spec_similarity) / 2
-                    similarity /= 2
+                    # Combine hash-based and cosine similarity scores
+                    hash_similarity = (weight_mfcc * mfcc_hash_similarity + weight_mel_spec * mel_spec_hash_similarity + weight_hash * spectrogram_hash_similarity)
+                    cosine_similarity = (mfcc_similarity + mel_spec_similarity) / 2
+
+                    # Normalize the combined similarity score
+                    similarity = (hash_similarity + cosine_similarity) / 2
 
                     print(
                         f"File: {file_name}, MFCC Hash Similarity: {mfcc_hash_similarity:.2f}%, MelSpec Hash Similarity: {mel_spec_hash_similarity:.2f}%, Spectrogram Hash Similarity: {spectrogram_hash_similarity:.2f}, MFCC Cosine Similarity: {mfcc_similarity:.2f}%, MelSpec Cosine Similarity: {mel_spec_similarity:.2f}%")
@@ -254,17 +327,40 @@ class MainWindow(QWidget):
         self.results_table.show()
 
     def calculate_hash_similarity(self, hash1_str, hash2_str):
+        '''
+        Calculate the similarity between two perceptual hashes.
+        Args:
+            hash1_str (str): Hash of the first image.
+            hash2_str (str): Hash of the second image.
+        Returns:
+            similarity (float): Similarity score between 0 and 1.
+        '''
         hash1 = imagehash.hex_to_hash(hash1_str)
         hash2 = imagehash.hex_to_hash(hash2_str)
         return max(0, 1 - (hash1 - hash2) / len(hash1.hash))
 
     def normalize_features(self, features):
+        '''
+        Normalize the features to have zero mean and unit variance.
+        Args:
+            features (np.array): Features to be normalized.
+        Returns:
+            normalized_features (np.array): Normalized features.
+        '''
         features = np.array(features)
         mean = np.mean(features, axis=1, keepdims=True)
         std = np.std(features, axis=1, keepdims=True)
         return (features - mean) / std
 
     def calculate_similarity(self, feature1, feature2):
+        '''
+        Calculate the cosine similarity between two feature arrays.
+        Args:
+            feature1 (np.array): First feature array.
+            feature2 (np.array): Second feature array.
+        Returns:
+            similarity (float): Cosine similarity score between 0 and 100.
+        '''
         feature1 = self.normalize_features(feature1)
         feature2 = self.normalize_features(feature2)
 
@@ -279,12 +375,21 @@ class MainWindow(QWidget):
         return abs(similarity) * 100
 
     def check_mix_files_loaded(self):
+        '''
+        Check if both mix files are loaded and enable the play button if they are.
+        '''
         if self.file1 and self.file2:
             self.play_mix_button.setEnabled(True)
         else:
             self.play_mix_button.setEnabled(False)
 
     def load_mix_song_1(self):
+        '''
+        Load the first song for mixing using a file dialog.
+        Updates the UI and checks if both mix files are loaded.
+        Returns:
+            file1 (str): Path to the first audio file.
+        '''
         self.file1, _ = QFileDialog.getOpenFileName(self, "Select First Audio File", "",
                                                     "Audio Files (*.wav *.flac *.ogg)")
         if not self.file1:
@@ -294,16 +399,27 @@ class MainWindow(QWidget):
         return self.file1
 
     def load_mix_song_2(self):
+        '''
+        Load the second song for mixing using a file dialog.
+        Updates the UI and checks if both mix files are loaded.
+        Returns:
+            file2 (str): Path to the second audio file.
+        '''
         self.file2, _ = QFileDialog.getOpenFileName(self, "Select Second Audio File", "",
                                                     "Audio Files (*.wav *.flac *.ogg)")
         if not self.file2:
             return None, None
-        self.load_mix_song_2_button.setText(f"Load Song 1 for Mixing, Loaded File: {os.path.basename(self.file2)}")
+        self.load_mix_song_2_button.setText(f"Load Song 2 for Mixing, Loaded File: {os.path.basename(self.file2)}")
         self.check_mix_files_loaded()
         return self.file2
 
     def mix_audio(self):
-
+        '''
+        Mix the two loaded audio files.
+        Returns:
+            mixed_audio (np.array): Mixed audio data.
+            sr1 (int): Sample rate of the mixed audio.
+        '''
         audio1, sr1 = sf.read(self.file1)
         audio2, sr2 = sf.read(self.file2)
 
@@ -317,21 +433,34 @@ class MainWindow(QWidget):
 
         mixed_audio = audio1 + audio2
         mixed_audio = np.clip(mixed_audio, -1.0, 1.0)
+
+        sf.write("mixed_audio.wav", mixed_audio, sr1)
         return mixed_audio, sr1
 
     def play_audio(self):
+        '''
+        Play the mixed audio.
+        '''
         print("Playing mixed audio...")
         audio, samplerate = self.mix_audio()
         sd.play(audio, samplerate)
         self.stop_button.setEnabled(True)
 
     def stop_audio(self):
+        '''
+        Stop the audio playback.
+        '''
         print("Stopping audio...")
         sd.stop()
         self.stop_button.setEnabled(False)
 
 
 def process_all_songs_in_directory(directory):
+    '''
+    Process all songs in the directory
+    args:
+        directory: str, directory containing the songs
+    '''
     for file_name in os.listdir(directory):
         if file_name.endswith(('.mp3', '.wav', '.flac')):
             file_path = os.path.join(directory, file_name)
