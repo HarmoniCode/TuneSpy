@@ -7,8 +7,9 @@ import matplotlib.pyplot as plt
 import librosa.display
 import imagehash
 from PIL import Image
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QLabel, QTableWidget, \
-    QTableWidgetItem
+    QTableWidgetItem, QSlider
 import soundfile as sf
 from scipy.signal import resample
 import logging
@@ -197,6 +198,22 @@ class MainWindow(QWidget):
         self.stop_button.clicked.connect(self.stop_audio)
         self.layout.addWidget(self.stop_button)
 
+        self.slider1_label = QLabel("Weight of Audio 1")
+        self.layout.addWidget(self.slider1_label)
+        self.slider1 = QSlider(Qt.Horizontal)
+        self.slider1.setRange(0, 100)
+        self.slider1.setValue(50)
+        self.layout.addWidget(self.slider1)
+        self.slider1.setEnabled(False)
+
+        self.slider2_label = QLabel("Weight of Audio 2")
+        self.layout.addWidget(self.slider2_label)
+        self.slider2 = QSlider(Qt.Horizontal)
+        self.slider2.setRange(0, 100)
+        self.slider2.setValue(50)
+        self.layout.addWidget(self.slider2)
+        self.slider2.setEnabled(False)
+
         self.generate_button = QPushButton("Generate Spectrogram & Extract Features")
         self.generate_button.clicked.connect(self.song_process)
         self.layout.addWidget(self.generate_button)
@@ -380,8 +397,12 @@ class MainWindow(QWidget):
         '''
         if self.file1 and self.file2:
             self.play_mix_button.setEnabled(True)
+            self.slider1.setEnabled(True)
+            self.slider2.setEnabled(True)
         else:
             self.play_mix_button.setEnabled(False)
+            self.slider1.setEnabled(False)
+            self.slider2.setEnabled(False)
 
     def load_mix_song_1(self):
         '''
@@ -430,8 +451,9 @@ class MainWindow(QWidget):
         max_length = max(len(audio1), len(audio2))
         audio1 = np.pad(audio1, ((0, max_length - len(audio1)), (0, 0)), mode='constant')
         audio2 = np.pad(audio2, ((0, max_length - len(audio2)), (0, 0)), mode='constant')
-
-        mixed_audio = audio1 + audio2
+        weight1 = self.slider1.value() / 100.0
+        weight2 = self.slider2.value() / 100.0
+        mixed_audio = weight1 * audio1 + weight2 * audio2
         mixed_audio = np.clip(mixed_audio, -1.0, 1.0)
 
         sf.write("mixed_audio.wav", mixed_audio, sr1)
