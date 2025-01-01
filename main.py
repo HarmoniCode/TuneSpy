@@ -7,13 +7,17 @@ import matplotlib.pyplot as plt
 import librosa.display
 import imagehash
 from PIL import Image
-import hashlib
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QLabel, QTableWidget, QTableWidgetItem
-from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QFileDialog, QLabel, QTableWidget, \
+    QTableWidgetItem
+import soundfile as sf
+from scipy.signal import resample
 import logging
+import sounddevice as sd
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s', filename='logging.log', filemode='w')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s', filename='logging.log',
+                    filemode='w')
 logger = logging.getLogger()
+
 
 class Song:
     def __init__(self, file_path):
@@ -21,7 +25,7 @@ class Song:
         self.spectrogram_path = None
         self.features_path = None
         self.hash_path = None
-        self.duration=30
+        self.duration = 30
 
     def load_audio(self):
         time, sample_rate = librosa.load(self.file_path, sr=None, duration=self.duration)
@@ -31,7 +35,7 @@ class Song:
     def generate_spectrogram(self, time, sample_rate):
         spectrogram = librosa.feature.melspectrogram(y=time, sr=sample_rate, n_mels=128, fmax=8000)
         spectrogram_dB = librosa.power_to_db(spectrogram, ref=np.max)
-        return spectrogram_dB  
+        return spectrogram_dB
 
     def save_spectrogram(self, spectrogram_dB, sample_rate):
         plt.figure(figsize=(10, 4))
@@ -41,13 +45,13 @@ class Song:
 
         output_dir = "./Data/Spectrograms"
         os.makedirs(output_dir, exist_ok=True)
-        self.spectrogram_path = os.path.join(output_dir, os.path.splitext(os.path.basename(self.file_path))[0] + "_spectrogram.png")
+        self.spectrogram_path = os.path.join(output_dir,
+                                             os.path.splitext(os.path.basename(self.file_path))[0] + "_spectrogram.png")
         plt.savefig(self.spectrogram_path)
         plt.close()
         logger.info(f"Spectrogram saved: {self.spectrogram_path}")
 
-    def extract_features(self, spectrogram_dB, time,sample_rate ):
-        
+    def extract_features(self, spectrogram_dB, time, sample_rate):
         mfccs = librosa.feature.mfcc(S=spectrogram_dB, sr=sample_rate, n_mfcc=13)
         mfccs_list = mfccs.tolist()
         mel_spec_list = spectrogram_dB.tolist()
@@ -56,13 +60,13 @@ class Song:
     def save_features(self, mfccs_list, mel_spec_list):
         output_dir = "./Data/Features"
         os.makedirs(output_dir, exist_ok=True)
-        self.features_path = os.path.join(output_dir, os.path.splitext(os.path.basename(self.file_path))[0] + "_features.json")
+        self.features_path = os.path.join(output_dir,
+                                          os.path.splitext(os.path.basename(self.file_path))[0] + "_features.json")
         with open(self.features_path, 'w') as json_file:
             json.dump({"mfccs": mfccs_list, "melSpec": mel_spec_list}, json_file)
         logger.info(f"Features saved: {self.features_path}")
 
     def hash_features(self, mfccs_list, mel_spec_list):
-
         temp_dir = os.path.join("./Data", "Temp")
         os.makedirs(temp_dir, exist_ok=True)
 
@@ -78,7 +82,7 @@ class Song:
         mfcc_img = Image.open(mfcc_temp_path)
         mfcc_hash = imagehash.phash(mfcc_img)
         os.remove(mfcc_temp_path)
-        
+
         mel_spec_array = np.array(mel_spec_list)
         mel_spec_temp_path = os.path.join(temp_dir, 'mel_spec_temp.png')
         plt.imshow(mel_spec_array, cmap='viridis', aspect='auto')
@@ -88,7 +92,7 @@ class Song:
         mel_spec_img = Image.open(mel_spec_temp_path)
         mel_spec_hash = imagehash.phash(mel_spec_img)
         os.remove(mel_spec_temp_path)
-        
+
         return str(spec_hash), str(mfcc_hash), str(mel_spec_hash)
 
     def save_hashes(self, spectrogram_hash, mfcc_hash, mel_spec_hash):
@@ -96,32 +100,52 @@ class Song:
         os.makedirs(output_dir, exist_ok=True)
         self.hash_path = os.path.join(output_dir, os.path.splitext(os.path.basename(self.file_path))[0] + "_hash.json")
         with open(self.hash_path, 'w') as json_file:
-            json.dump({"spectrogram_hash": spectrogram_hash, "mfcc_hash": mfcc_hash, "mel_spec_hash": mel_spec_hash}, json_file)
+            json.dump({"spectrogram_hash": spectrogram_hash, "mfcc_hash": mfcc_hash, "mel_spec_hash": mel_spec_hash},
+                      json_file)
         logger.info(f"Hashes saved: {self.hash_path}")
+
 
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
+        self.file1 = None
+        self.file2 = None
         self.setWindowTitle("Spectrogram & Feature Extractor")
         self.setGeometry(100, 100, 600, 400)
-        
+
         self.layout = QVBoxLayout()
-        
+
         self.label = QLabel("No file selected")
         self.layout.addWidget(self.label)
-        
+
         self.load_button = QPushButton("Load Song")
         self.load_button.clicked.connect(self.load_song)
         self.layout.addWidget(self.load_button)
-        
+
+        self.load_mix_song_1_button = QPushButton("Load Song 1 for Mixing")
+        self.load_mix_song_1_button.clicked.connect(self.load_mix_song_1)
+        self.layout.addWidget(self.load_mix_song_1_button)
+
+        self.load_mix_song_2_button = QPushButton("Load Song 2 for Mixing")
+        self.load_mix_song_2_button.clicked.connect(self.load_mix_song_2)
+        self.layout.addWidget(self.load_mix_song_2_button)
+
+        self.play_mix_button = QPushButton("Play mixed Audio")
+        self.play_mix_button.setEnabled(False)
+        self.play_mix_button.clicked.connect(self.play_audio)
+        self.layout.addWidget(self.play_mix_button)
+
+        self.stop_button = QPushButton("Stop Audio")
+        self.stop_button.setEnabled(False)
+        self.stop_button.clicked.connect(self.stop_audio)
+        self.layout.addWidget(self.stop_button)
+
         self.generate_button = QPushButton("Generate Spectrogram & Extract Features")
         self.generate_button.clicked.connect(self.song_process)
-        self.generate_button.setEnabled(False)  
         self.layout.addWidget(self.generate_button)
 
         self.compare_button = QPushButton("Compare with Database")
         self.compare_button.clicked.connect(self.compare_with_database)
-        self.compare_button.setEnabled(False)
         self.layout.addWidget(self.compare_button)
 
         self.results_table = QTableWidget()
@@ -136,7 +160,7 @@ class MainWindow(QWidget):
         if file_path:
             self.song = Song(file_path)
             self.label.setText(f"Selected: {os.path.basename(file_path)}")
-            self.generate_button.setEnabled(True)  
+            self.generate_button.setEnabled(True)
             logger.info(f"Loaded song: {file_path}")
 
     def song_process(self):
@@ -145,10 +169,13 @@ class MainWindow(QWidget):
         # y, sr = self.song.load_audio()
         # S_dB = self.song.generate_spectrogram(y, sr)
         # mfccs_list, mel_spec_list = self.song.extract_features(S_dB, y, sr)
-        
-        self.song.features_path = os.path.join("./Data/Features", os.path.splitext(os.path.basename(self.song.file_path))[0] + "_features.json")
-        self.song.hash_path = os.path.join("./Data/Hashes", os.path.splitext(os.path.basename(self.song.file_path))[0] + "_hash.json")
-        
+
+        self.song.features_path = os.path.join("./Data/Features",
+                                               os.path.splitext(os.path.basename(self.song.file_path))[
+                                                   0] + "_features.json")
+        self.song.hash_path = os.path.join("./Data/Hashes",
+                                           os.path.splitext(os.path.basename(self.song.file_path))[0] + "_hash.json")
+
         self.label.setText(f"Processing completed for {os.path.basename(self.song.file_path)}")
         self.compare_button.setEnabled(True)
 
@@ -156,17 +183,17 @@ class MainWindow(QWidget):
         database = {}
         features_dir = "./Data/Features"
         hashes_dir = "./Data/Hashes"
-        
+
         for file_name in os.listdir(features_dir):
             if file_name.endswith("_features.json"):
                 with open(os.path.join(features_dir, file_name), 'r') as json_file:
                     database[file_name] = json.load(json_file)
-        
+
         for file_name in os.listdir(hashes_dir):
             if file_name.endswith("_hash.json"):
                 with open(os.path.join(hashes_dir, file_name), 'r') as json_file:
                     database[file_name] = json.load(json_file)
-        
+
         logger.info("Loaded database")
         return database
 
@@ -195,18 +222,21 @@ class MainWindow(QWidget):
                     db_mfcc_hash = db_hashes["mfcc_hash"]
                     db_mel_spec_hash = db_hashes["mel_spec_hash"]
 
-                    spectrogram_hash_similarity = self.calculate_hash_similarity(song_spectrogram_hash, db_spectrogram_hash)
+                    spectrogram_hash_similarity = self.calculate_hash_similarity(song_spectrogram_hash,
+                                                                                 db_spectrogram_hash)
                     mfcc_hash_similarity = self.calculate_hash_similarity(song_mfcc_hash, db_mfcc_hash)
                     mel_spec_hash_similarity = self.calculate_hash_similarity(song_mel_spec_hash, db_mel_spec_hash)
 
                     mfcc_similarity = self.calculate_similarity(song_mfcc, data["mfccs"])
                     mel_spec_similarity = self.calculate_similarity(song_mel_spec, data["melSpec"])
 
-                    similarity =  (weight_mfcc * mfcc_hash_similarity + weight_mel_spec * mel_spec_hash_similarity + weight_hash * spectrogram_hash_similarity) * 100
+                    similarity = (
+                                         weight_mfcc * mfcc_hash_similarity + weight_mel_spec * mel_spec_hash_similarity + weight_hash * spectrogram_hash_similarity) * 100
                     similarity += (mfcc_similarity + mel_spec_similarity) / 2
                     similarity /= 2
 
-                    print(f"File: {file_name}, MFCC Hash Similarity: {mfcc_hash_similarity:.2f}%, MelSpec Hash Similarity: {mel_spec_hash_similarity:.2f}%, Spectrogram Hash Similarity: {spectrogram_hash_similarity:.2f}, MFCC Cosine Similarity: {mfcc_similarity:.2f}%, MelSpec Cosine Similarity: {mel_spec_similarity:.2f}%")
+                    print(
+                        f"File: {file_name}, MFCC Hash Similarity: {mfcc_hash_similarity:.2f}%, MelSpec Hash Similarity: {mel_spec_hash_similarity:.2f}%, Spectrogram Hash Similarity: {spectrogram_hash_similarity:.2f}, MFCC Cosine Similarity: {mfcc_similarity:.2f}%, MelSpec Cosine Similarity: {mel_spec_similarity:.2f}%")
                     similarities.append((file_name, similarity))
 
         similarities.sort(key=lambda x: x[1], reverse=True)
@@ -226,7 +256,7 @@ class MainWindow(QWidget):
     def calculate_hash_similarity(self, hash1_str, hash2_str):
         hash1 = imagehash.hex_to_hash(hash1_str)
         hash2 = imagehash.hex_to_hash(hash2_str)
-        return max(0, 1 - (hash1 - hash2) / len(hash1.hash))  
+        return max(0, 1 - (hash1 - hash2) / len(hash1.hash))
 
     def normalize_features(self, features):
         features = np.array(features)
@@ -237,38 +267,93 @@ class MainWindow(QWidget):
     def calculate_similarity(self, feature1, feature2):
         feature1 = self.normalize_features(feature1)
         feature2 = self.normalize_features(feature2)
-        
+
         min_length = min(feature1.shape[1], feature2.shape[1])
         feature1 = feature1[:, :min_length]
         feature2 = feature2[:, :min_length]
-        
+
         dot_product = np.dot(feature1.flatten(), feature2.flatten())
         norm1 = np.linalg.norm(feature1.flatten())
         norm2 = np.linalg.norm(feature2.flatten())
         similarity = dot_product / (norm1 * norm2)
-        return abs(similarity) * 100  
+        return abs(similarity) * 100
+
+    def check_mix_files_loaded(self):
+        if self.file1 and self.file2:
+            self.play_mix_button.setEnabled(True)
+        else:
+            self.play_mix_button.setEnabled(False)
+
+    def load_mix_song_1(self):
+        self.file1, _ = QFileDialog.getOpenFileName(self, "Select First Audio File", "",
+                                                    "Audio Files (*.wav *.flac *.ogg)")
+        if not self.file1:
+            return None, None
+        self.load_mix_song_1_button.setText(f"Load Song 1 for Mixing, Loaded File: {os.path.basename(self.file1)}")
+        self.check_mix_files_loaded()
+        return self.file1
+
+    def load_mix_song_2(self):
+        self.file2, _ = QFileDialog.getOpenFileName(self, "Select Second Audio File", "",
+                                                    "Audio Files (*.wav *.flac *.ogg)")
+        if not self.file2:
+            return None, None
+        self.load_mix_song_2_button.setText(f"Load Song 1 for Mixing, Loaded File: {os.path.basename(self.file2)}")
+        self.check_mix_files_loaded()
+        return self.file2
+
+    def mix_audio(self):
+
+        audio1, sr1 = sf.read(self.file1)
+        audio2, sr2 = sf.read(self.file2)
+
+        if sr1 != sr2:
+            num_samples = round(len(audio2) * float(sr1) / sr2)
+            audio2 = resample(audio2, num_samples)
+            sr2 = sr1
+        max_length = max(len(audio1), len(audio2))
+        audio1 = np.pad(audio1, ((0, max_length - len(audio1)), (0, 0)), mode='constant')
+        audio2 = np.pad(audio2, ((0, max_length - len(audio2)), (0, 0)), mode='constant')
+
+        mixed_audio = audio1 + audio2
+        mixed_audio = np.clip(mixed_audio, -1.0, 1.0)
+        return mixed_audio, sr1
+
+    def play_audio(self):
+        print("Playing mixed audio...")
+        audio, samplerate = self.mix_audio()
+        sd.play(audio, samplerate)
+        self.stop_button.setEnabled(True)
+
+    def stop_audio(self):
+        print("Stopping audio...")
+        sd.stop()
+        self.stop_button.setEnabled(False)
+
 
 def process_all_songs_in_directory(directory):
     for file_name in os.listdir(directory):
         if file_name.endswith(('.mp3', '.wav', '.flac')):
             file_path = os.path.join(directory, file_name)
             logger.info(f"Processing {file_path}")
-            
+
             song = Song(file_path)
             y, sr = song.load_audio()
             S_dB = song.generate_spectrogram(y, sr)
             song.save_spectrogram(S_dB, sr)
             mfccs_list, mel_spec_list = song.extract_features(S_dB, y, sr)
             song.save_features(mfccs_list, mel_spec_list)
-            spectrogram_hash,mfcc_hash, mel_spec_hash = song.hash_features(mfccs_list, mel_spec_list)
+            spectrogram_hash, mfcc_hash, mel_spec_hash = song.hash_features(mfccs_list, mel_spec_list)
             song.save_hashes(spectrogram_hash, mfcc_hash, mel_spec_hash)
             logger.info(f"Processed {file_path}")
+
 
 def main():
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())
+
 
 if __name__ == "__main__":
     # Uncomment the following line to process all songs in the directory
