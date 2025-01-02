@@ -1,0 +1,51 @@
+/* QPushButton {
+    background-color: #4CAF50; /* Green background */
+    border: none;
+    color: white;
+    padding: 10px 24px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 12px;
+}
+
+QPushButton:hover {
+    background-color: #45a049; /* Darker green on hover */
+}
+
+QLabel {
+    font-size: 14px;
+    color: #333; /* Dark gray text */
+}
+
+QSlider::groove:horizontal {
+    border: 1px solid #999999;
+    height: 8px;
+    background: #b0c4de;
+    margin: 2px 0;
+}
+
+QSlider::handle:horizontal {
+    background: #4CAF50;
+    border: 1px solid #5c5c5c;
+    width: 18px;
+    margin: -2px 0;
+    border-radius: 3px;
+}
+
+QTableWidget {
+    gridline-color: #d3d3d3;
+    font-size: 14px;
+}
+
+QTableWidget::item {
+    padding: 5px;
+}
+
+QTableWidget::item:selected {
+    background-color: #4CAF50;
+    color: white;
+} */

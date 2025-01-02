@@ -12,17 +12,21 @@ from PyQt5.QtWidgets import (
     QApplication,
     QWidget,
     QVBoxLayout,
+    QHBoxLayout,
     QPushButton,
     QFileDialog,
     QLabel,
     QTableWidget,
     QTableWidgetItem,
     QSlider,
+    QFrame
 )
+from PyQt5.QtGui import QPixmap
 import soundfile as sf
 from scipy.signal import resample
 import logging
 import sounddevice as sd
+import mutagen
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -41,6 +45,7 @@ class Song:
         self.features_path = None
         self.hash_path = None
         self.duration = 30  # Duration to load from the audio file (in seconds)
+        self.cover_image = None  # Attribute to store the cover image
 
     def load_audio(self):
         """
@@ -54,6 +59,20 @@ class Song:
         )
         logger.info(f"Loaded audio for {self.file_path}")
         return time, sample_rate
+    
+    def load_cover_image(self):
+        """
+        Load the cover image from the audio file if available.
+        """
+        try:
+            audio = mutagen.File(self.file_path)
+            for tag in audio.tags.values():
+                if isinstance(tag, mutagen.id3.APIC):
+                    self.cover_image = tag.data
+                    return
+        except Exception as e:
+            logger.error(f"Error loading album cover: {e}")
+        self.cover_image = None
 
     def generate_spectrogram(self, time, sample_rate):
         """
@@ -200,66 +219,109 @@ class MainWindow(QWidget):
         super().__init__()
         self.file1 = None
         self.file2 = None
+        self.song = None
         self.setWindowTitle("Spectrogram & Feature Extractor")
         self.setGeometry(100, 100, 600, 400)
 
-        self.layout = QVBoxLayout()
+        self.layout = QHBoxLayout()
+
+        left_frame=QFrame()
+        left_frame.setFixedWidth(400)
+        left_layout = QVBoxLayout()
+        left_frame.setLayout(left_layout)
+
+        right_frame=QFrame()
+        right_layout = QVBoxLayout()
+        right_frame.setLayout(right_layout)
+
+        self.layout.addWidget(left_frame)
+        self.layout.addWidget(right_frame)
 
         self.label = QLabel("No file selected")
-        self.layout.addWidget(self.label)
+        # right_layout.addWidget(self.label)
+
+        image_frame = QFrame()
+        # image_frame.setStyleSheet("border: 1px solid red;")
+        image_layout = QVBoxLayout()
+        image_layout.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        image_frame.setLayout(image_layout)
+        self.cover_label = QLabel()
+        self.cover_label.setStyleSheet("border: 1px solid black; border-radius: 20px;")
+        self.cover_label.setFixedSize(800, 800)
+        self.cover_label.setAlignment(Qt.AlignCenter)  # Center the image horizontally and vertically
+        image_layout.addWidget(self.cover_label)
+        right_layout.addWidget(image_frame)
+
+        default_image_path = "./Styles/logo.png"
+        if os.path.exists(default_image_path):
+            pixmap = QPixmap(default_image_path)
+            self.cover_label.setPixmap(pixmap.scaled(600, 600, Qt.KeepAspectRatio))
+        else:
+            self.cover_label.setText("No Image")
+            self.cover_label.setAlignment(Qt.AlignCenter)
+            # self.cover_label.setStyleSheet("font-size: 50px; border: 1px solid black;")
 
         self.load_button = QPushButton("Load Song")
         self.load_button.clicked.connect(self.load_song)
-        self.layout.addWidget(self.load_button)
+        left_layout.addWidget(self.load_button)
+
+        mix_frame=QFrame()
+        mix_layout=QVBoxLayout()
+        mix_frame.setLayout(mix_layout)
 
         self.load_mix_song_1_button = QPushButton("Load Song 1 for Mixing")
         self.load_mix_song_1_button.clicked.connect(self.load_mix_song_1)
-        self.layout.addWidget(self.load_mix_song_1_button)
+        mix_layout.addWidget(self.load_mix_song_1_button)
 
         self.load_mix_song_2_button = QPushButton("Load Song 2 for Mixing")
         self.load_mix_song_2_button.clicked.connect(self.load_mix_song_2)
-        self.layout.addWidget(self.load_mix_song_2_button)
+        mix_layout.addWidget(self.load_mix_song_2_button)
 
         self.mix_audio_button = QPushButton("Mix Audio")
         self.mix_audio_button.clicked.connect(self.mix_audio)
-        self.layout.addWidget(self.mix_audio_button)
+        mix_layout.addWidget(self.mix_audio_button)
+
+        left_layout.addWidget(mix_frame)
+
+        control_frame = QFrame()
+        control_layout = QHBoxLayout()
+        control_frame.setLayout(control_layout)
 
         self.play_mix_button = QPushButton("Play Audio")
-        self.play_mix_button.setEnabled(False)
         self.play_mix_button.clicked.connect(self.play_audio)
-        self.layout.addWidget(self.play_mix_button)
+        control_layout.addWidget(self.play_mix_button)
 
         self.stop_button = QPushButton("Stop Audio")
         self.stop_button.setEnabled(False)
         self.stop_button.clicked.connect(self.stop_audio)
-        self.layout.addWidget(self.stop_button)
+        control_layout.addWidget(self.stop_button)
 
+        right_layout.addWidget(control_frame)
+
+        H_layout1 = QHBoxLayout()
         self.slider1_label = QLabel("Weight of Audio 1")
-        self.layout.addWidget(self.slider1_label)
+        H_layout1.addWidget(self.slider1_label)
         self.slider1 = QSlider(Qt.Horizontal)
         self.slider1.setRange(0, 100)
         self.slider1.setValue(50)
-        self.layout.addWidget(self.slider1)
+        H_layout1.addWidget(self.slider1)
         self.slider1.setEnabled(False)
 
+        H_layout2 = QHBoxLayout()
+
         self.slider2_label = QLabel("Weight of Audio 2")
-        self.layout.addWidget(self.slider2_label)
+        H_layout2.addWidget(self.slider2_label)
         self.slider2 = QSlider(Qt.Horizontal)
         self.slider2.setRange(0, 100)
         self.slider2.setValue(50)
-        self.layout.addWidget(self.slider2)
+        H_layout2.addWidget(self.slider2)
         self.slider2.setEnabled(False)
 
-        # self.generate_button = QPushButton("Generate Spectrogram & Extract Features")
-        # self.generate_button.clicked.connect(self.song_process)
-        # self.layout.addWidget(self.generate_button)
-
-        # self.compare_button = QPushButton("Compare with Database")
-        # self.compare_button.clicked.connect(self.compare_with_database)
-        # self.layout.addWidget(self.compare_button)
+        left_layout.addLayout(H_layout1)
+        left_layout.addLayout(H_layout2)
 
         self.results_table = QTableWidget()
-        self.layout.addWidget(self.results_table)
+        left_layout.addWidget(self.results_table)
 
         self.setLayout(self.layout)
         self.song = None
@@ -275,32 +337,28 @@ class MainWindow(QWidget):
         )
         if file_path:
             self.song = Song(file_path)
+            self.song.load_cover_image()
             self.label.setText(f"Selected: {os.path.basename(file_path)}")
-            # self.generate_button.setEnabled(True)
+            self.display_cover_image()
             logger.info(f"Loaded song: {file_path}")
 
         self.compare_with_database()
 
-    # def song_process(self):
-    #     """
-    #     Process the loaded song to prepare it for comparison.
-    #     Sets the paths for features and hashes, and updates the UI.
-    #     """
-    #     if not self.song:
-    #         return
-    #     self.song.features_path = os.path.join(
-    #         "./Data/Features",
-    #         os.path.splitext(os.path.basename(self.song.file_path))[0]
-    #         + "_features.json",
-    #     )
-    #     self.song.hash_path = os.path.join(
-    #         "./Data/Hashes",
-    #         os.path.splitext(os.path.basename(self.song.file_path))[0] + "_hash.json",
-    #     )
-    #     self.label.setText(
-    #         f"Processing completed for {os.path.basename(self.song.file_path)}"
-    #     )
-    #     self.compare_button.setEnabled(True)
+    def display_cover_image(self):
+        """
+        Display the cover image in the cover_label.
+        If no image is found, display the first letter of the song name.
+        """
+        if self.song.cover_image:
+            pixmap = QPixmap()
+            pixmap.loadFromData(self.song.cover_image)
+            self.cover_label.setPixmap(pixmap.scaled(600, 600, Qt.KeepAspectRatio))
+        else:
+            song_name = os.path.basename(self.song.file_path)
+            first_word = song_name.split('_')[0].upper()
+            self.cover_label.setText(first_word)
+            self.cover_label.setAlignment(Qt.AlignCenter)
+            self.cover_label.setStyleSheet("font-size: 100px;border: 1px solid black; border-radius: 20px;")
 
     def load_database(self):
         """
@@ -397,8 +455,10 @@ class MainWindow(QWidget):
                         weight_mfcc * mfcc_hash_similarity
                         + weight_mel_spec * mel_spec_hash_similarity
                         + weight_hash * spectrogram_hash_similarity
-                    )
+                    )*100
+                    print("Hash-based similarity: ", hash_similarity)
                     cosine_similarity = (mfcc_similarity + mel_spec_similarity) / 2
+                    print("Cosine similarity: ", cosine_similarity)
 
                     # Normalize the combined similarity score
                     similarity = (hash_similarity + cosine_similarity) / 2
@@ -495,9 +555,9 @@ class MainWindow(QWidget):
         )
         if not self.file1:
             return None, None
-        self.load_mix_song_1_button.setText(
-            f"Load Song 1 for Mixing, Loaded File: {os.path.basename(self.file1)}"
-        )
+        # self.load_mix_song_1_button.setText(
+        #     f"Load Song 1 for Mixing, Loaded File: {os.path.basename(self.file1)}"
+        # )
         self.check_mix_files_loaded()
         return self.file1
 
@@ -513,15 +573,15 @@ class MainWindow(QWidget):
         )
         if not self.file2:
             return None, None
-        self.load_mix_song_2_button.setText(
-            f"Load Song 2 for Mixing, Loaded File: {os.path.basename(self.file2)}"
-        )
+        # self.load_mix_song_2_button.setText(
+        #     f"Load Song 2 for Mixing, Loaded File: {os.path.basename(self.file2)}"
+        # )
         self.check_mix_files_loaded()
         return self.file2
 
     def mix_audio(self):
         """
-        Mix the two loaded audio files.
+        Mix the two loaded audio files.a
         Stores the mixed audio data and sample rate as attributes.
         """
         audio1, sr1 = sf.read(self.file1)
@@ -555,26 +615,16 @@ class MainWindow(QWidget):
         Process and compare the mixed audio with the database.
         """
         # Create a temporary Song object with the mixed audio data
-        mixed_song = Song("./Data/Temp/temp_mixed_audio.wav")
-        mixed_song.file_path = "./Data/Temp/temp_mixed_audio.wav"
-        mixed_song.duration = len(self.mixed_audio) / self.mixed_audio_sr
+        self.song = Song("./Data/Temp/temp_mixed_audio.wav")
+        self.song.file_path = "./Data/Temp/temp_mixed_audio.wav"
+        self.song.duration = len(self.mixed_audio) / self.mixed_audio_sr
 
         # Save the mixed audio to a temporary file
-        sf.write(mixed_song.file_path, self.mixed_audio, self.mixed_audio_sr)
+        sf.write(self.song.file_path, self.mixed_audio, self.mixed_audio_sr)
 
-        # Process the mixed audio
-        time, sample_rate = mixed_song.load_audio()
-        spectrogram_dB = mixed_song.generate_spectrogram(time, sample_rate)
-        mixed_song.save_spectrogram(spectrogram_dB, sample_rate)
-        song_mfcc, song_mel_spec = mixed_song.extract_features(
-            spectrogram_dB, time, sample_rate
-        )
-        song_spectrogram_hash, song_mfcc_hash, song_mel_spec_hash = (
-            mixed_song.hash_features(song_mfcc, song_mel_spec)
-        )
+        # Display the first letter of the mixed audio file name
+        self.display_cover_image()
 
-        # Compare the mixed audio with the database
-        self.song = mixed_song
         self.compare_with_database()
 
     def play_audio(self):
@@ -582,7 +632,7 @@ class MainWindow(QWidget):
         Play the mixed audio.
         """
         print("Playing mixed audio...")
-        mixed_audio, samplerate = sf.read("./Data/Temp/temp_mixed_audio.wav")
+        mixed_audio, samplerate = sf.read(self.song.file_path)
         sd.play(mixed_audio, samplerate)
         self.stop_button.setEnabled(True)
 
@@ -593,7 +643,6 @@ class MainWindow(QWidget):
         print("Stopping audio...")
         sd.stop()
         self.stop_button.setEnabled(False)
-
 
 def process_all_songs_in_directory(directory):
     """
@@ -621,6 +670,8 @@ def process_all_songs_in_directory(directory):
 
 def main():
     app = QApplication(sys.argv)
+    with open("./Styles/index.qss", "r") as file:
+        app.setStyleSheet(file.read())
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())

@@ -1,2 +1,3 @@
+logging.log
 Data/*
 !Data/*.zip
