@@ -555,9 +555,9 @@ class MainWindow(QWidget):
         )
         if not self.file1:
             return None, None
-        # self.load_mix_song_1_button.setText(
-        #     f"Load Song 1 for Mixing, Loaded File: {os.path.basename(self.file1)}"
-        # )
+        self.load_mix_song_1_button.setText(
+            f"Load Song 1 for Mixing, Loaded File: {os.path.basename(self.file1)}"
+        )
         self.check_mix_files_loaded()
         return self.file1
 
@@ -573,9 +573,9 @@ class MainWindow(QWidget):
         )
         if not self.file2:
             return None, None
-        # self.load_mix_song_2_button.setText(
-        #     f"Load Song 2 for Mixing, Loaded File: {os.path.basename(self.file2)}"
-        # )
+        self.load_mix_song_2_button.setText(
+            f"Load Song 2 for Mixing, Loaded File: {os.path.basename(self.file2)}"
+        )
         self.check_mix_files_loaded()
         return self.file2
 
