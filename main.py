@@ -21,7 +21,7 @@ from PyQt5.QtWidgets import (
     QSlider,
     QFrame
 )
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtGui import QPixmap,QIcon
 import soundfile as sf
 from scipy.signal import resample
 import logging
@@ -226,8 +226,9 @@ class MainWindow(QWidget):
         self.layout = QHBoxLayout()
 
         left_frame=QFrame()
-        left_frame.setFixedWidth(400)
+        left_frame.setFixedWidth(500)
         left_layout = QVBoxLayout()
+        left_layout.setSpacing(10)
         left_frame.setLayout(left_layout)
 
         right_frame=QFrame()
@@ -241,18 +242,20 @@ class MainWindow(QWidget):
         # right_layout.addWidget(self.label)
 
         image_frame = QFrame()
+        image_frame.setObjectName("image_frame")
         # image_frame.setStyleSheet("border: 1px solid red;")
         image_layout = QVBoxLayout()
         image_layout.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
         image_frame.setLayout(image_layout)
         self.cover_label = QLabel()
+        self.cover_label.setObjectName("cover_label")
         self.cover_label.setStyleSheet("border: 1px solid black; border-radius: 20px;")
         self.cover_label.setFixedSize(800, 800)
         self.cover_label.setAlignment(Qt.AlignCenter)  # Center the image horizontally and vertically
         image_layout.addWidget(self.cover_label)
         right_layout.addWidget(image_frame)
 
-        default_image_path = "./Styles/logo.png"
+        default_image_path = "./Styles/logo2.png"
         if os.path.exists(default_image_path):
             pixmap = QPixmap(default_image_path)
             self.cover_label.setPixmap(pixmap.scaled(600, 600, Qt.KeepAspectRatio))
@@ -261,19 +264,29 @@ class MainWindow(QWidget):
             self.cover_label.setAlignment(Qt.AlignCenter)
             # self.cover_label.setStyleSheet("font-size: 50px; border: 1px solid black;")
 
-        self.load_button = QPushButton("Load Song")
+        self.load_button = QPushButton()
+        self.load_button.setFixedSize(100, 60)
+        load_icon = QIcon("./Styles/load.png")
+        self.load_button.setIcon(load_icon)
         self.load_button.clicked.connect(self.load_song)
-        left_layout.addWidget(self.load_button)
+        
 
         mix_frame=QFrame()
+        mix_frame.setObjectName("mix_frame")
         mix_layout=QVBoxLayout()
+        mix_layout.addSpacing(10)
         mix_frame.setLayout(mix_layout)
 
-        self.load_mix_song_1_button = QPushButton("Load Song 1 for Mixing")
+        mixer_label = QLabel("Audio Mixer")
+        mixer_label.setObjectName("mixer_label")
+        mixer_label.setAlignment(Qt.AlignCenter)
+        mix_layout.addWidget(mixer_label)
+
+        self.load_mix_song_1_button = QPushButton("Load Song 1")
         self.load_mix_song_1_button.clicked.connect(self.load_mix_song_1)
         mix_layout.addWidget(self.load_mix_song_1_button)
 
-        self.load_mix_song_2_button = QPushButton("Load Song 2 for Mixing")
+        self.load_mix_song_2_button = QPushButton("Load Song 2")
         self.load_mix_song_2_button.clicked.connect(self.load_mix_song_2)
         mix_layout.addWidget(self.load_mix_song_2_button)
 
@@ -284,22 +297,31 @@ class MainWindow(QWidget):
         left_layout.addWidget(mix_frame)
 
         control_frame = QFrame()
+        control_frame.setFixedHeight(90)
+        control_frame.setObjectName("control_frame")
         control_layout = QHBoxLayout()
         control_frame.setLayout(control_layout)
 
+        control_layout.addWidget(self.load_button)
+
         self.play_mix_button = QPushButton("Play Audio")
+        self.play_mix_button.setFixedHeight(60)
         self.play_mix_button.clicked.connect(self.play_audio)
         control_layout.addWidget(self.play_mix_button)
 
         self.stop_button = QPushButton("Stop Audio")
+        self.stop_button.setFixedHeight(60)
         self.stop_button.setEnabled(False)
         self.stop_button.clicked.connect(self.stop_audio)
         control_layout.addWidget(self.stop_button)
 
         right_layout.addWidget(control_frame)
 
+        H_frame = QFrame()
         H_layout1 = QHBoxLayout()
+        H_frame.setLayout(H_layout1)
         self.slider1_label = QLabel("Weight of Audio 1")
+        self.slider1_label.setObjectName("slider_label")
         H_layout1.addWidget(self.slider1_label)
         self.slider1 = QSlider(Qt.Horizontal)
         self.slider1.setRange(0, 100)
@@ -307,9 +329,11 @@ class MainWindow(QWidget):
         H_layout1.addWidget(self.slider1)
         self.slider1.setEnabled(False)
 
+        H_frame2=QFrame()
         H_layout2 = QHBoxLayout()
-
+        H_frame2.setLayout(H_layout2)
         self.slider2_label = QLabel("Weight of Audio 2")
+        self.slider2_label.setObjectName("slider_label")
         H_layout2.addWidget(self.slider2_label)
         self.slider2 = QSlider(Qt.Horizontal)
         self.slider2.setRange(0, 100)
@@ -317,10 +341,11 @@ class MainWindow(QWidget):
         H_layout2.addWidget(self.slider2)
         self.slider2.setEnabled(False)
 
-        left_layout.addLayout(H_layout1)
-        left_layout.addLayout(H_layout2)
+        left_layout.addWidget(H_frame)
+        left_layout.addWidget(H_frame2)
 
         self.results_table = QTableWidget()
+        self.results_table.setObjectName("results_table")
         left_layout.addWidget(self.results_table)
 
         self.setLayout(self.layout)
@@ -456,16 +481,16 @@ class MainWindow(QWidget):
                         + weight_mel_spec * mel_spec_hash_similarity
                         + weight_hash * spectrogram_hash_similarity
                     )*100
-                    print("Hash-based similarity: ", hash_similarity)
+                    # print("Hash-based similarity: ", hash_similarity)
                     cosine_similarity = (mfcc_similarity + mel_spec_similarity) / 2
-                    print("Cosine similarity: ", cosine_similarity)
+                    # print("Cosine similarity: ", cosine_similarity)
 
                     # Normalize the combined similarity score
                     similarity = (hash_similarity + cosine_similarity) / 2
 
-                    print(
-                        f"File: {file_name}, MFCC Hash Similarity: {mfcc_hash_similarity:.2f}%, MelSpec Hash Similarity: {mel_spec_hash_similarity:.2f}%, Spectrogram Hash Similarity: {spectrogram_hash_similarity:.2f}, MFCC Cosine Similarity: {mfcc_similarity:.2f}%, MelSpec Cosine Similarity: {mel_spec_similarity:.2f}%"
-                    )
+                    # print(
+                    #     f"File: {file_name}, MFCC Hash Similarity: {mfcc_hash_similarity:.2f}%, MelSpec Hash Similarity: {mel_spec_hash_similarity:.2f}%, Spectrogram Hash Similarity: {spectrogram_hash_similarity:.2f}, MFCC Cosine Similarity: {mfcc_similarity:.2f}%, MelSpec Cosine Similarity: {mel_spec_similarity:.2f}%"
+                    # )
                     similarities.append((file_name, similarity))
 
         similarities.sort(key=lambda x: x[1], reverse=True)
@@ -474,7 +499,11 @@ class MainWindow(QWidget):
         self.results_table.setColumnCount(2)
         self.results_table.setHorizontalHeaderLabels(["Song", "Similarity"])
 
+        max_length = 43 
+
         for i, (file_name, similarity) in enumerate(similarities):
+            if len(file_name) > max_length:
+                file_name = file_name[:max_length] + "..."  # Truncate and add ellipsis
             self.results_table.setItem(i, 0, QTableWidgetItem(file_name))
             self.results_table.setItem(i, 1, QTableWidgetItem(f"{similarity:.2f}%"))
 
