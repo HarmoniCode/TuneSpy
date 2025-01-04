@@ -327,9 +327,12 @@ class MainWindow(QWidget):
         self.slider1.setRange(0, 100)
         self.slider1.setValue(50)
         H_layout1.addWidget(self.slider1)
+        self.slider1_value_label = QLabel(str(self.slider1.value()))
+        H_layout1.addWidget(self.slider1_value_label)
+        self.slider1.valueChanged.connect(lambda: self.slider1_value_label.setText(str(self.slider1.value())))
         self.slider1.setEnabled(False)
 
-        H_frame2=QFrame()
+        H_frame2 = QFrame()
         H_layout2 = QHBoxLayout()
         H_frame2.setLayout(H_layout2)
         self.slider2_label = QLabel("Weight of Audio 2")
@@ -339,6 +342,9 @@ class MainWindow(QWidget):
         self.slider2.setRange(0, 100)
         self.slider2.setValue(50)
         H_layout2.addWidget(self.slider2)
+        self.slider2_value_label = QLabel(str(self.slider2.value()))
+        H_layout2.addWidget(self.slider2_value_label)
+        self.slider2.valueChanged.connect(lambda: self.slider2_value_label.setText(str(self.slider2.value())))
         self.slider2.setEnabled(False)
 
         left_layout.addWidget(H_frame)
@@ -503,7 +509,7 @@ class MainWindow(QWidget):
 
         for i, (file_name, similarity) in enumerate(similarities):
             if len(file_name) > max_length:
-                file_name = file_name[:max_length] + "..."  # Truncate and add ellipsis
+                file_name = file_name[:max_length] + "..."  
             self.results_table.setItem(i, 0, QTableWidgetItem(file_name))
             self.results_table.setItem(i, 1, QTableWidgetItem(f"{similarity:.2f}%"))
 
