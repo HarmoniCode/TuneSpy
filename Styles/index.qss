@@ -37,12 +37,15 @@ QPushButton:hover {
 QLabel {
     font-size: 14px;
     color: #333; /* Dark gray text */
-    background-color: white;
+    background-color: transparent;
 }
+
+
 
 QLabel#slider_label{
     padding: 5px;
     border: 1 solid #18a0e3;
+    background-color: white;
 }
 
 QLabel#mixer_label{
