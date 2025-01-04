@@ -1,5 +1,7 @@
 # TuneSpy
 
+![alt text](./Styles/image.png)
+
 TuneSpy is a Python application that allows users to load audio files, generate spectrograms, extract MFCC features, and compare the loaded audio with a preprocessed database of songs to find the most similar match.
 
 ## Features
@@ -10,6 +12,8 @@ TuneSpy is a Python application that allows users to load audio files, generate 
 - Hash spectrogram images using perceptual hashing
 - Compare loaded audio with a preprocessed database of songs
 - Display the most similar songs with similarity percentages
+- Mix two audio files with adjustable weights
+- Play and stop audio playback
 
 ## Requirements
 
@@ -21,12 +25,16 @@ TuneSpy is a Python application that allows users to load audio files, generate 
   - `imagehash`
   - `Pillow`
   - `PyQt5`
+  - `soundfile`
+  - `sounddevice`
+  - `scipy`
+  - `mutagen`
 
 ## Installation
 
 1. Clone the repository:
    ```sh
-   git clone  https://github.com/HarmoniCode/TuneSpy.git
+   git clone https://github.com/HarmoniCode/TuneSpy.git
    cd TuneSpy
    ```
 
@@ -35,11 +43,12 @@ TuneSpy is a Python application that allows users to load audio files, generate 
    pip install -r requirements.txt
    ```
 
-
 ## Running the Application
-    ```sh
-    python main.py
-    ```
+
+```sh
+python main.py
+```
 
 ## License
+
 This project is licensed under the MIT License. See the LICENSE file for details.
