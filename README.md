@@ -6,6 +6,8 @@
 
 ![alt text](./Styles/image.png)
 
+TuneSpy shares similarities with the popular **Shazam** app, as both are designed to identify and match audio clips with songs from a database. While Shazam primarily focuses on real-time audio recognition using advanced fingerprinting algorithms optimized for mobile environments, TuneSpy is a desktop application aimed at exploring the core concepts of audio processing and music matching.
+
 TuneSpy is a Python application that allows users to load audio files, generate spectrograms, extract MFCC features, and compare the loaded audio with a preprocessed database of songs to find the most similar match.
 
 
