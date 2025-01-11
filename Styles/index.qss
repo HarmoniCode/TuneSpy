@@ -40,6 +40,10 @@ QLabel {
     background-color: transparent;
 }
 
+QLabel#cover_label{
+    background-color: white;
+}
+
 
 
 QLabel#slider_label{
