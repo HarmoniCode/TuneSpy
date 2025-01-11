@@ -382,20 +382,21 @@ class MainWindow(QWidget):
         self.compare_with_database()
 
     def display_cover_image(self):
-        """
-        Display the cover image in the cover_label.
-        If no image is found, display the first letter of the song name.
-        """
-        if self.song.cover_image:
-            pixmap = QPixmap()
-            pixmap.loadFromData(self.song.cover_image)
-            self.cover_label.setPixmap(pixmap.scaled(600, 600, Qt.KeepAspectRatio))
-        else:
-            song_name = os.path.basename(self.song.file_path)
-            first_word = song_name.split('_')[0].upper()
-            self.cover_label.setText(first_word)
-            self.cover_label.setAlignment(Qt.AlignCenter)
-            self.cover_label.setStyleSheet("font-size: 100px;border: 1px solid black; border-radius: 20px;")
+        # """
+        # Display the cover image in the cover_label.
+        # If no image is found, display the first letter of the song name.
+        # """
+        # if self.song.cover_image:
+        #     pixmap = QPixmap()
+        #     pixmap.loadFromData(self.song.cover_image)
+        #     self.cover_label.setPixmap(pixmap.scaled(600, 600, Qt.KeepAspectRatio))
+        # else:
+        #     song_name = os.path.basename(self.song.file_path)
+        #     first_word = song_name.split('_')[0].upper()
+        #     self.cover_label.setText(first_word)
+        #     self.cover_label.setAlignment(Qt.AlignCenter)
+        #     self.cover_label.setStyleSheet("font-size: 100px;border: 1px solid black; border-radius: 20px;")
+        pass
 
     def load_database(self):
         """
@@ -513,12 +514,12 @@ class MainWindow(QWidget):
         self.results_table.setColumnCount(2)
         self.results_table.setHorizontalHeaderLabels(["Song", "Similarity"])
 
-        max_length = 43 
+        max_length = 50
 
         for i, (file_name, similarity) in enumerate(similarities):
             if len(file_name) > max_length:
                 file_name = file_name[:max_length] + "..."  
-            self.results_table.setItem(i, 0, QTableWidgetItem(file_name))
+            self.results_table.setItem(i, 0, QTableWidgetItem(file_name.rsplit("_",1)[0]))
             self.results_table.setItem(i, 1, QTableWidgetItem(f"{similarity:.2f}%"))
 
         self.results_table.resizeColumnsToContents()
