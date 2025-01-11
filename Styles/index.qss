@@ -15,6 +15,10 @@ QFrame#left_frame{
     background-color: white;
 }
 
+QLabel#mix_song_label{
+    margin-left:15px ;
+}
+
 
 QPushButton {
     background-color: #18a0e3; /* Green background */

@@ -146,7 +146,7 @@ class Song:
             json.dump({"mfccs": mfccs_list, "melSpec": mel_spec_list}, json_file)
         logger.info(f"Features saved: {self.features_path}")
 
-    def hash_features(self, mfccs_list, mel_spec_list):
+    def hash_features(self, mfccs_list, mel_spec_list,hash_size=64):
         """
         Hash the features using pHash
         Args:
@@ -162,7 +162,7 @@ class Song:
 
         # Hash the spectrogram image
         spec_img = Image.open(self.spectrogram_path)
-        spec_hash = imagehash.phash(spec_img)
+        # spec_hash = imagehash.phash(spec_img) 
 
         # Convert MFCCs to an image and hash it
         mfccs_array = np.array(mfccs_list)
@@ -172,7 +172,7 @@ class Song:
         plt.savefig(mfcc_temp_path, bbox_inches="tight", pad_inches=0)
         plt.close()
         mfcc_img = Image.open(mfcc_temp_path)
-        mfcc_hash = imagehash.phash(mfcc_img)
+        mfcc_hash = imagehash.phash(mfcc_img, hash_size=hash_size)
         os.remove(mfcc_temp_path)
 
         # Convert Mel spectrogram to an image and hash it
@@ -183,16 +183,15 @@ class Song:
         plt.savefig(mel_spec_temp_path, bbox_inches="tight", pad_inches=0)
         plt.close()
         mel_spec_img = Image.open(mel_spec_temp_path)
-        mel_spec_hash = imagehash.phash(mel_spec_img)
+        mel_spec_hash =imagehash.phash(mel_spec_img, hash_size=hash_size)
         os.remove(mel_spec_temp_path)
 
-        return str(spec_hash), str(mfcc_hash), str(mel_spec_hash)
+        return  str(mfcc_hash), str(mel_spec_hash)
 
-    def save_hashes(self, spectrogram_hash, mfcc_hash, mel_spec_hash):
+    def save_hashes(self, mfcc_hash, mel_spec_hash):
         """
         Save the hashes as a JSON file
         Args:
-            spectrogram_hash (str): Hash of the spectrogram
             mfcc_hash (str): Hash of the MFCCs
             mel_spec_hash (str): Hash of the Mel Spectrogram
         """
@@ -205,7 +204,7 @@ class Song:
         with open(self.hash_path, "w") as json_file:
             json.dump(
                 {
-                    "spectrogram_hash": spectrogram_hash,
+                    # "spectrogram_hash": spectrogram_hash,
                     "mfcc_hash": mfcc_hash,
                     "mel_spec_hash": mel_spec_hash,
                 },
@@ -284,11 +283,18 @@ class MainWindow(QWidget):
 
         self.load_mix_song_1_button = QPushButton("Load Song 1")
         self.load_mix_song_1_button.clicked.connect(self.load_mix_song_1)
+
+        self.mix_song_1_label = QLabel("No file selected")
+        self.mix_song_1_label.setObjectName("mix_song_label")
         mix_layout.addWidget(self.load_mix_song_1_button)
+        mix_layout.addWidget(self.mix_song_1_label)
 
         self.load_mix_song_2_button = QPushButton("Load Song 2")
         self.load_mix_song_2_button.clicked.connect(self.load_mix_song_2)
         mix_layout.addWidget(self.load_mix_song_2_button)
+        self.mix_song_2_label = QLabel("No file selected")
+        self.mix_song_2_label.setObjectName("mix_song_label")
+        mix_layout.addWidget(self.mix_song_2_label)
 
         self.mix_audio_button = QPushButton("Mix Audio")
         self.mix_audio_button.clicked.connect(self.mix_audio)
@@ -443,14 +449,15 @@ class MainWindow(QWidget):
         song_mfcc, song_mel_spec = self.song.extract_features(
             spectrogram_dB, time, sample_rate
         )
-        song_spectrogram_hash, song_mfcc_hash, song_mel_spec_hash = (
+        # song_spectrogram_hash
+        song_mfcc_hash, song_mel_spec_hash = (
             self.song.hash_features(song_mfcc, song_mel_spec)
         )
 
         similarities = []
 
-        weight_mfcc = 0.4
-        weight_mel_spec = 0.4
+        weight_mfcc = 0.5
+        weight_mel_spec = 0.5
         weight_hash = 0.2
 
         for file_name, data in self.database.items():
@@ -460,13 +467,13 @@ class MainWindow(QWidget):
                     os.path.join("./Data/Hashes", hash_file_name), "r"
                 ) as hash_file:
                     db_hashes = json.load(hash_file)
-                    db_spectrogram_hash = db_hashes["spectrogram_hash"]
+                    # db_spectrogram_hash = db_hashes["spectrogram_hash"]
                     db_mfcc_hash = db_hashes["mfcc_hash"]
                     db_mel_spec_hash = db_hashes["mel_spec_hash"]
 
-                    spectrogram_hash_similarity = self.calculate_hash_similarity(
-                        song_spectrogram_hash, db_spectrogram_hash
-                    )
+                    # spectrogram_hash_similarity = self.calculate_hash_similarity(
+                    #     song_spectrogram_hash, db_spectrogram_hash
+                    # )
                     mfcc_hash_similarity = self.calculate_hash_similarity(
                         song_mfcc_hash, db_mfcc_hash
                     )
@@ -474,10 +481,10 @@ class MainWindow(QWidget):
                         song_mel_spec_hash, db_mel_spec_hash
                     )
 
-                    mfcc_similarity = self.calculate_similarity(
+                    mfcc_similarity = self.calculate_cosine_similarity(
                         song_mfcc, data["mfccs"]
                     )
-                    mel_spec_similarity = self.calculate_similarity(
+                    mel_spec_similarity = self.calculate_cosine_similarity(
                         song_mel_spec, data["melSpec"]
                     )
 
@@ -485,18 +492,19 @@ class MainWindow(QWidget):
                     hash_similarity = (
                         weight_mfcc * mfcc_hash_similarity
                         + weight_mel_spec * mel_spec_hash_similarity
-                        + weight_hash * spectrogram_hash_similarity
+                        
                     )*100
                     # print("Hash-based similarity: ", hash_similarity)
                     cosine_similarity = (mfcc_similarity + mel_spec_similarity) / 2
                     # print("Cosine similarity: ", cosine_similarity)
 
                     # Normalize the combined similarity score
-                    similarity = (hash_similarity + cosine_similarity) / 2
+                    similarity = (hash_similarity + cosine_similarity)
+                    similarity=min(similarity,100)
 
-                    # print(
-                    #     f"File: {file_name}, MFCC Hash Similarity: {mfcc_hash_similarity:.2f}%, MelSpec Hash Similarity: {mel_spec_hash_similarity:.2f}%, Spectrogram Hash Similarity: {spectrogram_hash_similarity:.2f}, MFCC Cosine Similarity: {mfcc_similarity:.2f}%, MelSpec Cosine Similarity: {mel_spec_similarity:.2f}%"
-                    # )
+                    print(
+                        f"File: {file_name}, MFCC Hash Similarity: {mfcc_hash_similarity:.2f}%, MelSpec Hash Similarity: {mel_spec_hash_similarity:.2f}%, MFCC Cosine Similarity: {mfcc_similarity:.2f}%, MelSpec Cosine Similarity: {mel_spec_similarity:.2f}%"
+                    )
                     similarities.append((file_name, similarity))
 
         similarities.sort(key=lambda x: x[1], reverse=True)
@@ -543,7 +551,7 @@ class MainWindow(QWidget):
         std = np.std(features, axis=1, keepdims=True)
         return (features - mean) / std
 
-    def calculate_similarity(self, feature1, feature2):
+    def calculate_cosine_similarity(self, feature1, feature2):
         """
         Calculate the cosine similarity between two feature arrays.
         Args:
@@ -590,9 +598,10 @@ class MainWindow(QWidget):
         )
         if not self.file1:
             return None, None
-        self.load_mix_song_1_button.setText(
-            f"Load Song 1 for Mixing, Loaded File: {os.path.basename(self.file1)}"
-        )
+        # self.load_mix_song_1_button.setText(
+        #     f"Load Song 1 for Mixing, Loaded File: {os.path.basename(self.file1)}"
+        # )
+        self.mix_song_1_label.setText(f"{os.path.basename(self.file1)}")
         self.check_mix_files_loaded()
         return self.file1
 
@@ -608,9 +617,10 @@ class MainWindow(QWidget):
         )
         if not self.file2:
             return None, None
-        self.load_mix_song_2_button.setText(
-            f"Load Song 2 for Mixing, Loaded File: {os.path.basename(self.file2)}"
-        )
+        # self.load_mix_song_2_button.setText(
+        #     f"Load Song 2 for Mixing, Loaded File: {os.path.basename(self.file2)}"
+        # )
+        self.mix_song_2_label.setText(f"{os.path.basename(self.file2)}")
         self.check_mix_files_loaded()
         return self.file2
 
@@ -696,10 +706,10 @@ def process_all_songs_in_directory(directory):
             song.save_spectrogram(S_dB, sr)
             mfccs_list, mel_spec_list = song.extract_features(S_dB, y, sr)
             song.save_features(mfccs_list, mel_spec_list)
-            spectrogram_hash, mfcc_hash, mel_spec_hash = song.hash_features(
+            mfcc_hash, mel_spec_hash = song.hash_features(
                 mfccs_list, mel_spec_list
             )
-            song.save_hashes(spectrogram_hash, mfcc_hash, mel_spec_hash)
+            song.save_hashes( mfcc_hash, mel_spec_hash)
             logger.info(f"Processed {file_path}")
 
 
