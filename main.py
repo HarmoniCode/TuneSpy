@@ -124,7 +124,7 @@ class Song:
             mfccs_list (list): List of MFCCs
             mel_spec_list (list): List of Mel Spectrogram
         """
-        mfccs = librosa.feature.mfcc(S=spectrogram_dB, sr=sample_rate, n_mfcc=13)
+        mfccs = librosa.feature.mfcc(S=spectrogram_dB, sr=sample_rate, n_mfcc=20)
         mfccs_list = mfccs.tolist()
         mel_spec_list = spectrogram_dB.tolist()
         return mfccs_list, mel_spec_list
@@ -146,7 +146,7 @@ class Song:
             json.dump({"mfccs": mfccs_list, "melSpec": mel_spec_list}, json_file)
         logger.info(f"Features saved: {self.features_path}")
 
-    def hash_features(self, mfccs_list, mel_spec_list,hash_size=64):
+    def hash_features(self, mfccs_list, mel_spec_list,hash_size=16):
         """
         Hash the features using pHash
         Args:
@@ -503,9 +503,9 @@ class MainWindow(QWidget):
                     similarity = (hash_similarity + cosine_similarity)
                     similarity=min(similarity,100)
 
-                    print(
-                        f"File: {file_name}, MFCC Hash Similarity: {mfcc_hash_similarity:.2f}%, MelSpec Hash Similarity: {mel_spec_hash_similarity:.2f}%, MFCC Cosine Similarity: {mfcc_similarity:.2f}%, MelSpec Cosine Similarity: {mel_spec_similarity:.2f}%"
-                    )
+                    # print(
+                    #     f"File: {file_name}, MFCC Hash Similarity: {mfcc_hash_similarity:.2f}%, MelSpec Hash Similarity: {mel_spec_hash_similarity:.2f}%, MFCC Cosine Similarity: {mfcc_similarity:.2f}%, MelSpec Cosine Similarity: {mel_spec_similarity:.2f}%"
+                    # )
                     similarities.append((file_name, similarity))
 
         similarities.sort(key=lambda x: x[1], reverse=True)
@@ -627,7 +627,7 @@ class MainWindow(QWidget):
 
     def mix_audio(self):
         """
-        Mix the two loaded audio files.a
+        Mix the two loaded audio files.
         Stores the mixed audio data and sample rate as attributes.
         """
         audio1, sr1 = sf.read(self.file1)
@@ -637,13 +637,15 @@ class MainWindow(QWidget):
             num_samples = round(len(audio2) * float(sr1) / sr2)
             audio2 = resample(audio2, num_samples)
             sr2 = sr1
+
+        # Normalize audio files
+        audio1 = audio1 / np.max(np.abs(audio1))
+        audio2 = audio2 / np.max(np.abs(audio2))
+
         max_length = max(len(audio1), len(audio2))
-        audio1 = np.pad(
-            audio1, ((0, max_length - len(audio1)), (0, 0)), mode="constant"
-        )
-        audio2 = np.pad(
-            audio2, ((0, max_length - len(audio2)), (0, 0)), mode="constant"
-        )
+        audio1 = np.pad(audio1, ((0, max_length - len(audio1)), (0, 0)), mode="constant")
+        audio2 = np.pad(audio2, ((0, max_length - len(audio2)), (0, 0)), mode="constant")
+
         weight1 = self.slider1.value() / 100.0
         weight2 = self.slider2.value() / 100.0
         mixed_audio = weight1 * audio1 + weight2 * audio2
