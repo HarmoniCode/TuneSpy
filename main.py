@@ -459,7 +459,6 @@ class MainWindow(QWidget):
 
         weight_mfcc = 0.5
         weight_mel_spec = 0.5
-        weight_hash = 0.2
 
         for file_name, data in self.database.items():
             if file_name.endswith("_features.json"):
@@ -692,30 +691,6 @@ class MainWindow(QWidget):
         sd.stop()
         self.stop_button.setEnabled(False)
 
-def process_all_songs_in_directory(directory):
-    """
-    Process all songs in the directory
-    args:
-        directory: str, directory containing the songs
-    """
-    for file_name in os.listdir(directory):
-        if file_name.endswith((".mp3", ".wav", ".flac")):
-            file_path = os.path.join(directory, file_name)
-            logger.info(f"Processing {file_path}")
-
-            song = Song(file_path)
-            y, sr = song.load_audio()
-            S_dB = song.generate_spectrogram(y, sr)
-            song.save_spectrogram(S_dB, sr)
-            mfccs_list, mel_spec_list = song.extract_features(S_dB, y, sr)
-            song.save_features(mfccs_list, mel_spec_list)
-            mfcc_hash, mel_spec_hash = song.hash_features(
-                mfccs_list, mel_spec_list
-            )
-            song.save_hashes( mfcc_hash, mel_spec_hash)
-            logger.info(f"Processed {file_path}")
-
-
 def main():
     app = QApplication(sys.argv)
     with open("./Styles/index.qss", "r") as file:
@@ -727,5 +702,4 @@ def main():
 
 if __name__ == "__main__":
     # Uncomment the following line to process all songs in the directory
-    # process_all_songs_in_directory("./Data/Songs")
     main()
