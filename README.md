@@ -24,6 +24,10 @@ TuneSpy is a Python application that allows users to load audio files, generate 
 - Mix two audio files with adjustable weights
 - Play and stop audio playback
 
+## Video
+https://drive.google.com/file/d/1ryWmfJg-txpcvSwQyOTFaXqKX9mjTL75/view?usp=sharing
+
+
 ## Requirements
 
 - Python 3.x

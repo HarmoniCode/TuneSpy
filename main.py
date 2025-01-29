@@ -161,8 +161,6 @@ class Song:
         os.makedirs(temp_dir, exist_ok=True)
 
         # Hash the spectrogram image
-        spec_img = Image.open(self.spectrogram_path)
-        # spec_hash = imagehash.phash(spec_img) 
 
         # Convert MFCCs to an image and hash it
         mfccs_array = np.array(mfccs_list)
